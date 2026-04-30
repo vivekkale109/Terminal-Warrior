@@ -547,7 +547,7 @@ int combat_start(Game *g, Enemy *enemy) {
             "  ╚═════╝ ╚═╝╚══════╝\n"
             "\n  You have been slain by %s...\n\n" COLOR_RESET,
             enemy->name);
-        usleep(2000000);
+        sleep(2);   /* pause 2s on death screen */
         return 0;
     }
 

@@ -17,7 +17,7 @@ SRCS    = main.c player.c map.c combat.c inventory.c save.c
 OBJS    = $(SRCS:.c=.o)
 
 # Release flags: optimise, show all warnings, link math library
-CFLAGS  = -Wall -Wextra -O2 -std=c11
+CFLAGS  = -Wall -Wextra -O2 -std=c11 -D_POSIX_C_SOURCE=200809L
 LDFLAGS = -lm
 
 # ── Default target ────────────────────────────────────────────────────────────
