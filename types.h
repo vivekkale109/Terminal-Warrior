@@ -16,8 +16,8 @@
 /* ─────────────────────────────────────────────
    GAME CONSTANTS
 ───────────────────────────────────────────── */
-#define MAP_WIDTH       50
-#define MAP_HEIGHT      20
+#define MAP_WIDTH       50     
+#define MAP_HEIGHT      15
 #define MAX_ENEMIES     15
 #define MAX_ITEMS       20
 #define MAX_INVENTORY   10

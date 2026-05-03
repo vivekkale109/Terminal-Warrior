@@ -91,7 +91,7 @@ void combat_log(Game *g, const char *msg) {
     /* Shift log entries up */
     for (int i = 4; i > 0; i--)
         strncpy(g->combat_log[i], g->combat_log[i-1], 128);
-    strncpy(g->combat_log[0], msg, 128);
+    snprintf(g->combat_log[0], 128, "%s", msg);
     if (g->log_count < 5) g->log_count++;
 }
 
@@ -107,6 +107,7 @@ static void draw_bar(int cur, int max, int width, const char *color, const char 
 }
 
 void combat_render(const Game *g, const Enemy *e, const char *last_log) {
+    (void)last_log;  /* log is displayed via g->combat_log; parameter kept for API compatibility */
     const Player *p = &g->player;
 
     printf("\033[H\033[2J");
