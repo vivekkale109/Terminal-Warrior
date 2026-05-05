@@ -510,8 +510,8 @@ static void drawBar(int row, int col, int width, int cur, int max, int pair, con
 
 static int tileColor(char c) {
     switch (c) {
-        case '#': return CP_DIM;
-        case '.': return CP_DIM;
+        case '#': return CP_WHITE;
+        case '.': return CP_WHITE;
         case '@': return CP_WHITE;
         case 'E': return CP_RED;
         case 'B': return CP_MAGENTA;
@@ -548,7 +548,7 @@ static void renderMap(void) {
                 ch = '@'; pair = CP_WHITE;
             } else if (!cell->visible) {
                 if (!cell->explored) { ch = ' '; pair = CP_DEFAULT; }
-                else { ch = (cell->tile == '#') ? '#' : '.'; pair = CP_DIM; }
+                else { ch = (cell->tile == '#') ? '#' : '.'; pair = CP_WHITE; }
             } else {
                 ch = cell->tile;
                 pair = tileColor(ch);
@@ -700,7 +700,7 @@ static const char *enemyArt(int t) {
 static int enemyColor(int t) {
     switch (t) {
         case E_GOBLIN: case E_VAMPIRE: return CP_GREEN;
-        case E_SKELETON: return CP_DIM;
+        case E_SKELETON: return CP_WHITE;
         case E_ORC: return CP_YELLOW;
         case E_DRAGON: return CP_RED;
     }
