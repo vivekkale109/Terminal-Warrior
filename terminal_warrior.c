@@ -1,3 +1,4 @@
+
 /*
  * Terminal Warrior - C port (ncurses)
  * Build:  gcc -O2 -o terminal_warrior terminal_warrior.c -lncurses
@@ -30,11 +31,51 @@
 #define MAX_ROOMS   8
 #define MAX_LOG     8
 
-/* Color pairs */
+/* ── Expanded color pairs ─────────────────────────────────
+ *  We now use more pairs to get richer, more readable UI.
+ *  Standard ncurses gives us 64 pairs; we use 20-ish.
+ */
 enum {
-    CP_DEFAULT = 1,
-    CP_RED, CP_GREEN, CP_YELLOW, CP_BLUE,
-    CP_MAGENTA, CP_CYAN, CP_WHITE, CP_ORANGE
+    CP_DEFAULT  =  1,   /* white text, default bg             */
+    CP_RED      =  2,   /* bright red  – enemy HP, danger     */
+    CP_GREEN    =  3,   /* bright green – player HP, grass    */
+    CP_YELLOW   =  4,   /* yellow – treasure, highlights      */
+    CP_BLUE     =  5,   /* blue – MP bar, cold                */
+    CP_MAGENTA  =  6,   /* magenta – boss enemy               */
+    CP_CYAN     =  7,   /* cyan – stairs, info text           */
+    CP_WHITE    =  8,   /* bright white – walls, player @     */
+    CP_DIM      =  9,   /* dark grey – explored-but-dark      */
+
+    /* NEW pairs for richer colour */
+    CP_PLAYER   = 10,   /* bold yellow – @ glyph on map       */
+    CP_FLOOR    = 11,   /* mid grey – visible floor tiles     */
+    CP_WALL     = 12,   /* dark grey – visible wall tiles     */
+    CP_WALL_EXP = 13,   /* very dim – explored-not-visible #  */
+    CP_FLOOR_EXP= 14,   /* dimmer  – explored-not-visible .   */
+    CP_ENEMY    = 15,   /* red on default – regular enemies   */
+    CP_BOSS     = 16,   /* bright magenta + bold – boss       */
+    CP_TREASURE = 17,   /* bright yellow – T glyph            */
+    CP_STAIRS   = 18,   /* bright cyan – > glyph              */
+    CP_POISON   = 19,   /* green – poison status text         */
+    CP_STUN     = 20,   /* yellow – stun status text          */
+    CP_DEFEND   = 21,   /* cyan – defend status text          */
+    CP_HEADER   = 22,   /* white bold – section headers       */
+    CP_BAR_HP   = 23,   /* green on black – HP bar fill       */
+    CP_BAR_MP   = 24,   /* blue on black – MP bar fill        */
+    CP_BAR_ENE  = 25,   /* red on black – enemy HP bar fill   */
+    CP_GOBLIN   = 26,   /* dark green – goblin art            */
+    CP_SKELETON = 27,   /* white  – skeleton art              */
+    CP_ORC      = 28,   /* yellow – orc art                   */
+    CP_VAMPIRE  = 29,   /* magenta – vampire art              */
+    CP_DRAGON   = 30,   /* bright red + bold – dragon art     */
+    CP_XP       = 31,   /* bright yellow – XP / level info    */
+    CP_FLEE     = 32,   /* bright red – fled / danger msgs    */
+    CP_WIN      = 33,   /* bright yellow on default – victory */
+    CP_GAMEOVER = 34,   /* red – game over                    */
+    CP_MENU_HL  = 35,   /* yellow bold – selected menu item   */
+    CP_MENU_DIM = 36,   /* dark – disabled menu item          */
+    CP_TITLE    = 37,   /* bright red bold – title banner     */
+    CP_SUBHEAD  = 38,   /* cyan – section sub-headings        */
 };
 
 /* Player class */
@@ -178,36 +219,99 @@ static int loadSave(void) {
 static void deleteSave(void) { remove(savePath()); }
 
 /* ── Drawing helpers ─────────────────────────────────────── */
-static void drawCenter(int row, int pair, const char *s) {
+static void drawCenter(int row, int pair, int bold, const char *s) {
     int w = COLS;
     int x = (w - (int)strlen(s)) / 2;
     if (x < 0) x = 0;
-    attron(COLOR_PAIR(pair) | A_BOLD);
+    attr_t attrs = COLOR_PAIR(pair) | (bold ? A_BOLD : 0);
+    attron(attrs);
     mvprintw(row, x, "%s", s);
-    attroff(COLOR_PAIR(pair) | A_BOLD);
+    attroff(attrs);
+}
+
+/* ── Init colors ─────────────────────────────────────────── */
+static void initColors(void) {
+    start_color();
+    use_default_colors();
+
+    /* Legacy pairs kept for any stray references */
+    init_pair(CP_DEFAULT,   COLOR_WHITE,   -1);
+    init_pair(CP_RED,       COLOR_RED,     -1);
+    init_pair(CP_GREEN,     COLOR_GREEN,   -1);
+    init_pair(CP_YELLOW,    COLOR_YELLOW,  -1);
+    init_pair(CP_BLUE,      COLOR_BLUE,    -1);
+    init_pair(CP_MAGENTA,   COLOR_MAGENTA, -1);
+    init_pair(CP_CYAN,      COLOR_CYAN,    -1);
+    init_pair(CP_WHITE,     COLOR_WHITE,   -1);
+    init_pair(CP_DIM,       COLOR_BLACK,   -1);
+
+    /* New, richer pairs */
+    init_pair(CP_PLAYER,    COLOR_YELLOW,  -1);   /* @ on map – bold yellow  */
+    init_pair(CP_FLOOR,     COLOR_WHITE,   -1);   /* visible floor – mid     */
+    init_pair(CP_WALL,      COLOR_WHITE,   -1);   /* visible wall – bright   */
+    init_pair(CP_WALL_EXP,  COLOR_BLACK,   -1);   /* explored wall – dim     */
+    init_pair(CP_FLOOR_EXP, COLOR_BLACK,   -1);   /* explored floor – dim    */
+    init_pair(CP_ENEMY,     COLOR_RED,     -1);   /* E on map                */
+    init_pair(CP_BOSS,      COLOR_MAGENTA, -1);   /* B on map                */
+    init_pair(CP_TREASURE,  COLOR_YELLOW,  -1);   /* T on map                */
+    init_pair(CP_STAIRS,    COLOR_CYAN,    -1);   /* > on map                */
+    init_pair(CP_POISON,    COLOR_GREEN,   -1);   /* [POISONED] badge        */
+    init_pair(CP_STUN,      COLOR_YELLOW,  -1);   /* [STUNNED] badge         */
+    init_pair(CP_DEFEND,    COLOR_CYAN,    -1);   /* [DEFENDING] badge       */
+    init_pair(CP_HEADER,    COLOR_WHITE,   -1);   /* bold headers            */
+    init_pair(CP_BAR_HP,    COLOR_GREEN,   COLOR_BLACK); /* HP bar fill      */
+    init_pair(CP_BAR_MP,    COLOR_BLUE,    COLOR_BLACK); /* MP bar fill      */
+    init_pair(CP_BAR_ENE,   COLOR_RED,     COLOR_BLACK); /* enemy HP fill    */
+    init_pair(CP_GOBLIN,    COLOR_GREEN,   -1);
+    init_pair(CP_SKELETON,  COLOR_WHITE,   -1);
+    init_pair(CP_ORC,       COLOR_YELLOW,  -1);
+    init_pair(CP_VAMPIRE,   COLOR_MAGENTA, -1);
+    init_pair(CP_DRAGON,    COLOR_RED,     -1);
+    init_pair(CP_XP,        COLOR_YELLOW,  -1);
+    init_pair(CP_FLEE,      COLOR_RED,     -1);
+    init_pair(CP_WIN,       COLOR_YELLOW,  -1);
+    init_pair(CP_GAMEOVER,  COLOR_RED,     -1);
+    init_pair(CP_MENU_HL,   COLOR_YELLOW,  -1);
+    init_pair(CP_MENU_DIM,  COLOR_BLACK,   -1);
+    init_pair(CP_TITLE,     COLOR_RED,     -1);
+    init_pair(CP_SUBHEAD,   COLOR_CYAN,    -1);
 }
 
 /* ── Title Screen ────────────────────────────────────────── */
 static void drawTitle(void) {
     erase();
-    drawCenter(2, CP_RED,    "==  TERMINAL WARRIOR  ==");
-    drawCenter(3, CP_DIM,    "v1.0.0  ·  A DUNGEON CRAWLER (C/ncurses port)");
-    drawCenter(5, CP_DIM,    "+------------------+");
-    drawCenter(6, CP_DIM,    "|  Descend. Fight. |");
-    drawCenter(7, CP_DIM,    "|  Survive the     |");
-    drawCenter(8, CP_DIM,    "|  Dragon's Lair.  |");
-    drawCenter(9, CP_DIM,    "+------------------+");
+    drawCenter(2,  CP_TITLE,    1, "══  TERMINAL WARRIOR  ══");
+    drawCenter(3,  CP_MENU_DIM, 0, "v1.0.0  ·  A Dungeon Crawler (C/ncurses port)");
+
+    drawCenter(5,  CP_CYAN,     0, "+------------------+");
+    drawCenter(6,  CP_CYAN,     0, "|  Descend. Fight. |");
+    drawCenter(7,  CP_CYAN,     0, "|  Survive the     |");
+    drawCenter(8,  CP_CYAN,     0, "|  Dragon's Lair.  |");
+    drawCenter(9,  CP_CYAN,     0, "+------------------+");
 
     int has = hasSave();
     int top = 12;
-    drawCenter(top,   CP_YELLOW, "-- MAIN MENU --");
+    drawCenter(top, CP_YELLOW, 1, "── MAIN MENU ──");
+
     char buf[64];
-    snprintf(buf, sizeof(buf), "[1] New Game");                    drawCenter(top+2, CP_DEFAULT, buf);
-    snprintf(buf, sizeof(buf), "[2] %s", has ? "Continue (Load)" : "Continue (no save)");
-    drawCenter(top+3, has ? CP_DEFAULT : CP_DIM, buf);
-    snprintf(buf, sizeof(buf), "[3] How to Play");                 drawCenter(top+4, CP_DEFAULT, buf);
-    snprintf(buf, sizeof(buf), "[4] Quit");                        drawCenter(top+5, CP_DEFAULT, buf);
-    drawCenter(top+8, CP_DIM, "Press a number key to choose.");
+    snprintf(buf, sizeof(buf), "[1]  New Game");
+    drawCenter(top+2, CP_MENU_HL, 1, buf);
+
+    if (has) {
+        snprintf(buf, sizeof(buf), "[2]  Continue (Load)");
+        drawCenter(top+3, CP_MENU_HL, 1, buf);
+    } else {
+        snprintf(buf, sizeof(buf), "[2]  Continue (no save)");
+        drawCenter(top+3, CP_MENU_DIM, 0, buf);
+    }
+
+    snprintf(buf, sizeof(buf), "[3]  How to Play");
+    drawCenter(top+4, CP_DEFAULT, 0, buf);
+
+    snprintf(buf, sizeof(buf), "[4]  Quit");
+    drawCenter(top+5, CP_FLEE, 0, buf);
+
+    drawCenter(top+8, CP_MENU_DIM, 0, "Press a number key to choose.");
     refresh();
 }
 
@@ -215,33 +319,100 @@ static void drawTitle(void) {
 static void drawHowTo(void) {
     erase();
     int y = 1;
-    attron(COLOR_PAIR(CP_YELLOW) | A_BOLD);
-    mvprintw(y++, 2, "HOW TO PLAY"); attroff(A_BOLD); attroff(COLOR_PAIR(CP_YELLOW));
+    attron(COLOR_PAIR(CP_TITLE) | A_BOLD);
+    mvprintw(y++, 2, "HOW TO PLAY");
+    attroff(COLOR_PAIR(CP_TITLE) | A_BOLD);
     y++;
-    attron(COLOR_PAIR(CP_CYAN));  mvprintw(y++, 2, "MOVEMENT"); attroff(COLOR_PAIR(CP_CYAN));
+
+    attron(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+    mvprintw(y++, 2, "MOVEMENT");
+    attroff(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
     mvprintw(y++, 4, "WASD / arrow keys to move. Walking into an enemy starts combat.");
     y++;
-    attron(COLOR_PAIR(CP_CYAN));  mvprintw(y++, 2, "COMBAT"); attroff(COLOR_PAIR(CP_CYAN));
-    mvprintw(y++, 4, "[1] Attack     - Standard attack. Rogues have higher crit.");
-    mvprintw(y++, 4, "[2] Defend     - Double DEF for one turn.");
-    mvprintw(y++, 4, "[3] Use Item   - Use a potion / antidote.");
-    mvprintw(y++, 4, "[4] Special    - Class ability (costs MP).");
-    mvprintw(y++, 4, "[5] Flee       - 50%% chance to escape.");
+
+    attron(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+    mvprintw(y++, 2, "COMBAT");
+    attroff(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+    attron(COLOR_PAIR(CP_MENU_HL));
+    mvprintw(y++, 4, "[1] Attack");
+    attroff(COLOR_PAIR(CP_MENU_HL));
+    mvprintw(LINES - 1, 0, "");   /* keep cursor safe */
+    mvprintw(y-1, 18, " - Standard attack. Rogues have higher crit.");
+
+    attron(COLOR_PAIR(CP_DEFEND));
+    mvprintw(y++, 4, "[2] Defend");
+    attroff(COLOR_PAIR(CP_DEFEND));
+    mvprintw(y-1, 18, " - Double DEF for one turn.");
+
+    attron(COLOR_PAIR(CP_GREEN));
+    mvprintw(y++, 4, "[3] Use Item");
+    attroff(COLOR_PAIR(CP_GREEN));
+    mvprintw(y-1, 18, " - Use a potion / antidote.");
+
+    attron(COLOR_PAIR(CP_YELLOW) | A_BOLD);
+    mvprintw(y++, 4, "[4] Special");
+    attroff(COLOR_PAIR(CP_YELLOW) | A_BOLD);
+    mvprintw(y-1, 18, " - Class ability (costs MP).");
+
+    attron(COLOR_PAIR(CP_FLEE));
+    mvprintw(y++, 4, "[5] Flee");
+    attroff(COLOR_PAIR(CP_FLEE));
+    mvprintw(y-1, 18, "   - 50%% chance to escape.");
     y++;
-    attron(COLOR_PAIR(CP_CYAN));  mvprintw(y++, 2, "CLASS SPECIALS"); attroff(COLOR_PAIR(CP_CYAN));
-    mvprintw(y++, 4, "Warrior - Shield Bash  (20 MP): 2x dmg + STUN");
-    mvprintw(y++, 4, "Mage    - Fireball     (30 MP): 3x magic dmg, ignores DEF");
-    mvprintw(y++, 4, "Rogue   - Shadow Strike(15 MP): 2x dmg + 4-turn POISON");
+
+    attron(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+    mvprintw(y++, 2, "CLASS SPECIALS");
+    attroff(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+
+    attron(COLOR_PAIR(CP_RED) | A_BOLD);
+    mvprintw(y, 4, "Warrior");
+    attroff(COLOR_PAIR(CP_RED) | A_BOLD);
+    mvprintw(y++, 12, " - Shield Bash  (20 MP): 2x dmg + STUN");
+
+    attron(COLOR_PAIR(CP_BLUE) | A_BOLD);
+    mvprintw(y, 4, "Mage   ");
+    attroff(COLOR_PAIR(CP_BLUE) | A_BOLD);
+    mvprintw(y++, 12, " - Fireball     (30 MP): 3x magic dmg, ignores DEF");
+
+    attron(COLOR_PAIR(CP_MAGENTA) | A_BOLD);
+    mvprintw(y, 4, "Rogue  ");
+    attroff(COLOR_PAIR(CP_MAGENTA) | A_BOLD);
+    mvprintw(y++, 12, " - Shadow Strike(15 MP): 2x dmg + 4-turn POISON");
     y++;
-    attron(COLOR_PAIR(CP_CYAN));  mvprintw(y++, 2, "MAP LEGEND"); attroff(COLOR_PAIR(CP_CYAN));
-    mvprintw(y++, 4, "@ You   E Enemy   B Boss   T Treasure   > Stairs   # Wall   . Floor");
-    y++;
-    attron(COLOR_PAIR(CP_CYAN));  mvprintw(y++, 2, "GOAL"); attroff(COLOR_PAIR(CP_CYAN));
+
+    attron(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+    mvprintw(y++, 2, "MAP LEGEND");
+    attroff(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+
+    /* Coloured legend glyphs */
+    int lx = 4, ly = y;
+    attron(COLOR_PAIR(CP_PLAYER) | A_BOLD); mvprintw(ly, lx, "@"); attroff(COLOR_PAIR(CP_PLAYER) | A_BOLD);
+    mvprintw(ly++, lx+2, "You");
+    attron(COLOR_PAIR(CP_ENEMY) | A_BOLD);  mvprintw(ly, lx, "E"); attroff(COLOR_PAIR(CP_ENEMY) | A_BOLD);
+    mvprintw(ly++, lx+2, "Enemy");
+    attron(COLOR_PAIR(CP_BOSS) | A_BOLD);   mvprintw(ly, lx, "B"); attroff(COLOR_PAIR(CP_BOSS) | A_BOLD);
+    mvprintw(ly++, lx+2, "Boss");
+    attron(COLOR_PAIR(CP_TREASURE) | A_BOLD); mvprintw(ly, lx, "T"); attroff(COLOR_PAIR(CP_TREASURE) | A_BOLD);
+    mvprintw(ly++, lx+2, "Treasure");
+    attron(COLOR_PAIR(CP_STAIRS) | A_BOLD); mvprintw(ly, lx, ">"); attroff(COLOR_PAIR(CP_STAIRS) | A_BOLD);
+    mvprintw(ly++, lx+2, "Stairs down");
+    attron(COLOR_PAIR(CP_WALL) | A_BOLD);   mvprintw(ly, lx, "#"); attroff(COLOR_PAIR(CP_WALL) | A_BOLD);
+    mvprintw(ly++, lx+2, "Wall");
+    attron(COLOR_PAIR(CP_FLOOR));           mvprintw(ly, lx, "."); attroff(COLOR_PAIR(CP_FLOOR));
+    mvprintw(ly++, lx+2, "Floor");
+    y = ly + 1;
+
+    attron(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+    mvprintw(y++, 2, "GOAL");
+    attroff(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+    attron(COLOR_PAIR(CP_YELLOW));
     mvprintw(y++, 4, "Descend through 3 dungeon levels and slay the Dragon Boss!");
+    attroff(COLOR_PAIR(CP_YELLOW));
     y += 2;
-    attron(COLOR_PAIR(CP_DIM));
+
+    attron(COLOR_PAIR(CP_MENU_DIM));
     mvprintw(y, 2, "Press any key to return to the main menu.");
-    attroff(COLOR_PAIR(CP_DIM));
+    attroff(COLOR_PAIR(CP_MENU_DIM));
     refresh();
 }
 
@@ -252,13 +423,18 @@ static int charScreen(char *outName, int *outClass) {
 
     while (1) {
         erase();
-        drawCenter(1, CP_YELLOW, "==  CREATE YOUR HERO  ==");
+        drawCenter(1, CP_YELLOW, 1, "══  CREATE YOUR HERO  ══");
+
+        attron(COLOR_PAIR(CP_CYAN));
         mvprintw(4, 4, "Hero Name: ");
+        attroff(COLOR_PAIR(CP_CYAN));
         attron(COLOR_PAIR(CP_WHITE) | A_BOLD);
         mvprintw(4, 16, "%s_", name);
         attroff(COLOR_PAIR(CP_WHITE) | A_BOLD);
 
+        attron(COLOR_PAIR(CP_SUBHEAD));
         mvprintw(6, 4, "Choose Your Class:");
+        attroff(COLOR_PAIR(CP_SUBHEAD));
 
         const char *titles[] = { "", "[1] WARRIOR", "[2] MAGE", "[3] ROGUE" };
         const char *desc[]   = { "",
@@ -266,31 +442,35 @@ static int charScreen(char *outName, int *outClass) {
             "Glass cannon. Low HP, devastating magic. Special: Fireball.",
             "Fast and sneaky. High crit chance. Special: Shadow Strike (poisons)." };
         const char *stats[]  = { "",
-            "HP:120 MP:30 ATK:12 DEF:8",
-            "HP:70  MP:80 ATK:16 DEF:3",
-            "HP:90  MP:50 ATK:14 DEF:5" };
+            "HP:120  MP:30   ATK:12  DEF:8",
+            "HP:70   MP:80   ATK:16  DEF:3",
+            "HP:90   MP:50   ATK:14  DEF:5" };
+        /* Color per class: warrior=red, mage=blue, rogue=magenta */
+        int clrPairs[] = { 0, CP_RED, CP_BLUE, CP_MAGENTA };
 
         for (int c = 1; c <= 3; c++) {
             int row = 8 + (c-1)*4;
-            int hl = (sel == c);
-            int pair = hl ? CP_YELLOW : CP_DIM;
+            int hl  = (sel == c);
+            int pair = hl ? clrPairs[c] : CP_MENU_DIM;
             attron(COLOR_PAIR(pair) | (hl ? A_BOLD : 0));
             mvprintw(row,   4, "%s %s", hl ? ">" : " ", titles[c]);
             attroff(A_BOLD);
             mvprintw(row+1, 8, "%s", desc[c]);
-            attron(COLOR_PAIR(CP_CYAN));
-            mvprintw(row+2, 8, "%s", stats[c]);
-            attroff(COLOR_PAIR(CP_CYAN));
+            if (hl) {
+                attron(COLOR_PAIR(CP_CYAN) | A_BOLD);
+                mvprintw(row+2, 8, "%s", stats[c]);
+                attroff(COLOR_PAIR(CP_CYAN) | A_BOLD);
+            }
             attroff(COLOR_PAIR(pair));
         }
 
-        attron(COLOR_PAIR(CP_DIM));
+        attron(COLOR_PAIR(CP_MENU_DIM));
         mvprintw(22, 4, "Type letters to set name. [1/2/3] pick class. [Enter] begin. [Esc] back.");
-        attroff(COLOR_PAIR(CP_DIM));
+        attroff(COLOR_PAIR(CP_MENU_DIM));
         refresh();
 
         int ch = getch();
-        if (ch == 27) return 0;                          /* ESC */
+        if (ch == 27) return 0;
         if (ch == '\n' || ch == '\r' || ch == KEY_ENTER) {
             if (!name[0]) strcpy(name, "Hero");
             strncpy(outName, name, 23); outName[23] = 0;
@@ -358,7 +538,6 @@ static void generateMap(Map *m, int level) {
         for (int x = 0; x < MAP_W; x++)
             m->grid[y][x].tile = '#';
 
-    /* Carve rooms */
     Room rooms[64]; int nr = 0;
     for (int i = 0; i < 30 && nr < MAX_ROOMS; i++) {
         int rw = 4 + randn(7), rh = 3 + randn(5);
@@ -373,7 +552,6 @@ static void generateMap(Map *m, int level) {
         if (!overlap) { rooms[nr].x = rx; rooms[nr].y = ry; rooms[nr].w = rw; rooms[nr].h = rh; nr++; }
     }
     if (nr < 2) {
-        /* fallback: one big room */
         rooms[0].x = 1; rooms[0].y = 1; rooms[0].w = MAP_W-2; rooms[0].h = MAP_H-2; nr = 1;
     }
     m->nRooms = nr;
@@ -394,13 +572,11 @@ static void generateMap(Map *m, int level) {
         while (cy != by) { m->grid[cy][cx].tile = '.'; cy += (by > cy ? 1 : -1); }
     }
 
-    /* Stairs */
     Room *last = &rooms[nr-1];
     int sx = last->x + last->w/2, sy = last->y + last->h/2;
     m->stairsX = sx; m->stairsY = sy;
     m->grid[sy][sx].tile = '>';
 
-    /* Enemies */
     int isBoss = (level == 3);
     int count = 3 + level * 2; if (count > 12) count = 12;
     for (int i = 0; i < count && m->nEnemies < MAX_ENEMIES - 1; i++) {
@@ -422,7 +598,6 @@ static void generateMap(Map *m, int level) {
         m->grid[by2][bx2].tile = 'B';
     }
 
-    /* Treasure */
     int tcount = 2 + randn(3);
     for (int i = 0; i < tcount && m->nLoot < MAX_LOOT; i++) {
         Room *r = &rooms[randn(nr)];
@@ -496,77 +671,152 @@ static const char *className(int c) {
     switch (c) { case 1: return "Warrior"; case 2: return "Mage"; case 3: return "Rogue"; }
     return "?";
 }
+static int classColor(int c) {
+    switch (c) { case 1: return CP_RED; case 2: return CP_BLUE; case 3: return CP_MAGENTA; }
+    return CP_DEFAULT;
+}
 
-static void drawBar(int row, int col, int width, int cur, int max, int pair, const char *label) {
+/* Draw a bar with coloured fill.  The 'filled' portion uses fillPair, the
+   empty portion uses emptyPair (CP_DIM looks like a dim background).       */
+static void drawBar(int row, int col, int width, int cur, int max,
+                    int fillPair, int emptyPair, const char *label) {
     if (max <= 0) max = 1;
     int filled = (cur * width) / max;
     if (filled < 0) filled = 0; if (filled > width) filled = width;
-    attron(COLOR_PAIR(pair));
+
+    attron(COLOR_PAIR(CP_DEFAULT));
     mvprintw(row, col, "%s [", label);
-    for (int i = 0; i < width; i++) addch(i < filled ? '|' : ' ');
+    attroff(COLOR_PAIR(CP_DEFAULT));
+
+    /* filled portion */
+    attron(COLOR_PAIR(fillPair) | A_BOLD);
+    for (int i = 0; i < filled; i++) addch('|');
+    attroff(COLOR_PAIR(fillPair) | A_BOLD);
+
+    /* empty portion */
+    attron(COLOR_PAIR(emptyPair));
+    for (int i = filled; i < width; i++) addch('-');
+    attroff(COLOR_PAIR(emptyPair));
+
+    attron(COLOR_PAIR(CP_DEFAULT));
     printw("] %d/%d", cur, max);
-    attroff(COLOR_PAIR(pair));
+    attroff(COLOR_PAIR(CP_DEFAULT));
 }
 
-static int tileColor(char c) {
-    switch (c) {
-        case '#': return CP_WHITE;
-        case '.': return CP_WHITE;
-        case '@': return CP_ORANGE;
-        case 'E': return CP_RED;
-        case 'B': return CP_MAGENTA;
-        case 'T': return CP_YELLOW;
-        case '>': return CP_CYAN;
+/* Returns (pair, bold) for a map tile */
+static void tileAttr(char c, int visible, int explored, int *pair, int *bold) {
+    *bold = 0;
+    if (!visible) {
+        /* explored-but-dark */
+        *pair = (c == '#') ? CP_WALL_EXP : CP_FLOOR_EXP;
+        return;
     }
-    return CP_DEFAULT;
+    switch (c) {
+        case '#': *pair = CP_WALL;    *bold = 1; break;
+        case '.': *pair = CP_FLOOR;   *bold = 0; break;
+        case '@': *pair = CP_PLAYER;  *bold = 1; break;
+        case 'E': *pair = CP_ENEMY;   *bold = 1; break;
+        case 'B': *pair = CP_BOSS;    *bold = 1; break;
+        case 'T': *pair = CP_TREASURE;*bold = 1; break;
+        case '>': *pair = CP_STAIRS;  *bold = 1; break;
+        default:  *pair = CP_DEFAULT; break;
+    }
 }
 
 static void renderMap(void) {
     erase();
     Player *p = &G.player;
 
-    /* Header */
+    /* ── Header row 0: name + class ── */
     attron(COLOR_PAIR(CP_WHITE) | A_BOLD);
     mvprintw(0, 0, "%s", p->name);
-    attroff(A_BOLD); attroff(COLOR_PAIR(CP_WHITE));
-    attron(COLOR_PAIR(CP_DIM));
-    mvprintw(0, 24, "%s  Lv.%d  Floor %d", className(p->pclass), p->level, p->dungeonLevel);
-    attroff(COLOR_PAIR(CP_DIM));
-    drawBar(1, 0,  20, p->hp, p->maxHp, CP_GREEN, "HP");
-    drawBar(1, 36, 20, p->mp, p->maxMp, CP_BLUE,  "MP");
-    attron(COLOR_PAIR(CP_CYAN));
-    mvprintw(2, 0, "ATK:%d  DEF:%d  XP:%d/%d", p->atk, p->def, p->xp, p->xpNext);
-    attroff(COLOR_PAIR(CP_CYAN));
+    attroff(COLOR_PAIR(CP_WHITE) | A_BOLD);
 
-    /* Map */
+    attron(COLOR_PAIR(classColor(p->pclass)) | A_BOLD);
+    mvprintw(0, strlen(p->name) + 1, "[%s]", className(p->pclass));
+    attroff(COLOR_PAIR(classColor(p->pclass)) | A_BOLD);
+
+    attron(COLOR_PAIR(CP_MENU_DIM));
+    mvprintw(0, 24, "Lv.%d   Floor %d   Turn %d", p->level, p->dungeonLevel, G.turn);
+    attroff(COLOR_PAIR(CP_MENU_DIM));
+
+    /* ── Row 1: HP and MP bars ── */
+    drawBar(1, 0,  20, p->hp, p->maxHp, CP_BAR_HP,  CP_MENU_DIM, "HP");
+    drawBar(1, 36, 20, p->mp, p->maxMp, CP_BAR_MP,  CP_MENU_DIM, "MP");
+
+    /* ── Row 2: stats + XP ── */
+    attron(COLOR_PAIR(CP_CYAN));
+    mvprintw(2, 0, "ATK:%-4d  DEF:%-4d", p->atk, p->def);
+    attroff(COLOR_PAIR(CP_CYAN));
+    attron(COLOR_PAIR(CP_XP));
+    mvprintw(2, 22, "XP: %d / %d", p->xp, p->xpNext);
+    attroff(COLOR_PAIR(CP_XP));
+
+    /* ── Status badges row 2 right ── */
+    int sx = 42;
+    if (p->status == ST_POISON) {
+        attron(COLOR_PAIR(CP_POISON) | A_BOLD);
+        mvprintw(2, sx, "[POISONED %d]", p->statusTurns);
+        attroff(COLOR_PAIR(CP_POISON) | A_BOLD);
+    } else if (p->status == ST_STUN) {
+        attron(COLOR_PAIR(CP_STUN) | A_BOLD);
+        mvprintw(2, sx, "[STUNNED %d]", p->statusTurns);
+        attroff(COLOR_PAIR(CP_STUN) | A_BOLD);
+    } else if (p->status == ST_DEFEND) {
+        attron(COLOR_PAIR(CP_DEFEND) | A_BOLD);
+        mvprintw(2, sx, "[DEFENDING]");
+        attroff(COLOR_PAIR(CP_DEFEND) | A_BOLD);
+    }
+
+    /* ── Map ── */
     int top = 4;
     for (int y = 0; y < MAP_H; y++) {
         for (int x = 0; x < MAP_W; x++) {
             Cell *cell = &G.map.grid[y][x];
-            char ch; int pair;
+            char ch; int pair, bold;
+
             if (p->x == x && p->y == y) {
-                ch = '@'; pair = CP_WHITE;
+                ch = '@'; pair = CP_PLAYER; bold = 1;
             } else if (!cell->visible) {
-                if (!cell->explored) { ch = ' '; pair = CP_DEFAULT; }
-                else { ch = (cell->tile == '#') ? '#' : '.'; pair = CP_WHITE; }
+                if (!cell->explored) {
+                    mvaddch(top + y, x, ' ');
+                    continue;
+                }
+                tileAttr(cell->tile, 0, 1, &pair, &bold);
+                ch = (cell->tile == '#') ? '#' : '.';
             } else {
                 ch = cell->tile;
-                pair = tileColor(ch);
+                tileAttr(ch, 1, 1, &pair, &bold);
             }
-            attron(COLOR_PAIR(pair));
+
+            attr_t a = COLOR_PAIR(pair) | (bold ? A_BOLD : 0);
+            attron(a);
             mvaddch(top + y, x, ch);
-            attroff(COLOR_PAIR(pair));
+            attroff(a);
         }
     }
 
-    /* Message + key help */
+    /* ── Message + controls ── */
     int msgRow = top + MAP_H + 1;
-    attron(COLOR_PAIR(CP_YELLOW));
+
+    /* Colour message based on content keywords */
+    int msgPair = CP_YELLOW;
+    if (strstr(G.message, "damage") || strstr(G.message, "poison") ||
+        strstr(G.message, "slain")  || strstr(G.message, "dead"))
+        msgPair = CP_FLEE;
+    else if (strstr(G.message, "Level") || strstr(G.message, "XP") ||
+             strstr(G.message, "Found") || strstr(G.message, "Picked"))
+        msgPair = CP_XP;
+    else if (strstr(G.message, "escape") || strstr(G.message, "fled"))
+        msgPair = CP_CYAN;
+
+    attron(COLOR_PAIR(msgPair) | A_BOLD);
     mvprintw(msgRow, 0, "%s", G.message);
-    attroff(COLOR_PAIR(CP_YELLOW));
-    attron(COLOR_PAIR(CP_DIM));
-    mvprintw(msgRow + 1, 0, "WASD/arrows = move    I = inventory    Q = menu");
-    attroff(COLOR_PAIR(CP_DIM));
+    attroff(COLOR_PAIR(msgPair) | A_BOLD);
+
+    attron(COLOR_PAIR(CP_MENU_DIM));
+    mvprintw(msgRow + 1, 0, "WASD/arrows = move    I = inventory    Q = save & quit");
+    attroff(COLOR_PAIR(CP_MENU_DIM));
     refresh();
 }
 
@@ -610,7 +860,6 @@ static void pickupItem(int li) {
         }
     }
     G.map.grid[l->y][l->x].tile = '.';
-    /* Remove from loot list */
     for (int i = li; i < G.map.nLoot - 1; i++) G.map.loot[i] = G.map.loot[i+1];
     G.map.nLoot--;
 }
@@ -629,63 +878,6 @@ static void descendStairs(void) {
              G.player.dungeonLevel);
 }
 
-/* ── Combat (forward decl) ───────────────────────────────── */
-static int  enterCombat(Enemy *e);   /* returns 1 if game ended */
-static int  combatLoop(void);
-static void doGameOver(const char *msg);
-static int  doWin(void);
-
-/* ── Movement ────────────────────────────────────────────── */
-/* Returns: 0 keep playing, 1 quit-to-menu, 2 game-ended */
-static int tryMove(int dx, int dy) {
-    if (G.state != 0) return 0;
-    int nx = G.player.x + dx, ny = G.player.y + dy;
-    if (nx < 0 || nx >= MAP_W || ny < 0 || ny >= MAP_H) return 0;
-    char tile = G.map.grid[ny][nx].tile;
-    if (tile == '#') return 0;
-
-    /* Enemy? */
-    for (int i = 0; i < G.map.nEnemies; i++) {
-        Enemy *e = &G.map.enemies[i];
-        if (e->alive && e->x == nx && e->y == ny) {
-            if (enterCombat(e)) return 2;
-            return 0;
-        }
-    }
-
-    /* Loot? */
-    for (int i = 0; i < G.map.nLoot; i++) {
-        if (G.map.loot[i].x == nx && G.map.loot[i].y == ny) {
-            pickupItem(i);
-            break;
-        }
-    }
-
-    /* Stairs */
-    if (tile == '>') { descendStairs(); renderMap(); saveGame(); return 0; }
-
-    G.player.x = nx; G.player.y = ny;
-    G.turn++;
-
-    if (G.player.status == ST_POISON) {
-        G.player.statusTurns--;
-        int dmg = 3;
-        G.player.hp -= dmg; if (G.player.hp < 0) G.player.hp = 0;
-        snprintf(G.message, sizeof(G.message),
-                 "Poison deals %d damage! (%d turns left)", dmg, G.player.statusTurns);
-        if (G.player.statusTurns <= 0) {
-            G.player.status = ST_NONE;
-            strcpy(G.message, "Poison has faded.");
-        }
-        if (G.player.hp <= 0) { doGameOver("You succumbed to poison..."); return 2; }
-    }
-
-    updateFOV(&G.map, G.player.x, G.player.y);
-    renderMap();
-    saveGame();
-    return 0;
-}
-
 /* ── Combat ─────────────────────────────────────────────── */
 static const char *enemyArt(int t) {
     switch (t) {
@@ -697,12 +889,14 @@ static const char *enemyArt(int t) {
     }
     return "  ???";
 }
-static int enemyColor(int t) {
+
+static int enemyArtColor(int t) {
     switch (t) {
-        case E_GOBLIN: case E_VAMPIRE: return CP_GREEN;
-        case E_SKELETON: return CP_WHITE;
-        case E_ORC: return CP_YELLOW;
-        case E_DRAGON: return CP_RED;
+        case E_GOBLIN:   return CP_GOBLIN;
+        case E_SKELETON: return CP_SKELETON;
+        case E_ORC:      return CP_ORC;
+        case E_VAMPIRE:  return CP_VAMPIRE;
+        case E_DRAGON:   return CP_DRAGON;
     }
     return CP_DEFAULT;
 }
@@ -712,88 +906,136 @@ static void renderCombat(void) {
     Player *p = &G.player;
     Enemy  *e = combatEnemy;
 
-    drawCenter(0, CP_RED, "==  COMBAT  ==");
-    if (e->isBoss) drawCenter(1, CP_MAGENTA, "*  BOSS FIGHT  *");
+    /* ── Title bar ── */
+    attron(COLOR_PAIR(CP_TITLE) | A_BOLD);
+    drawCenter(0, CP_TITLE, 1, "══  COMBAT  ══");
+    attroff(COLOR_PAIR(CP_TITLE) | A_BOLD);
+    if (e->isBoss) drawCenter(1, CP_MAGENTA, 1, "★  BOSS FIGHT  ★");
 
-    /* Enemy panel */
-    attron(COLOR_PAIR(CP_RED) | A_BOLD);
+    /* ── Enemy panel (left) ── */
+    int enemyPair = e->isBoss ? CP_BOSS : CP_ENEMY;
+    attron(COLOR_PAIR(enemyPair) | A_BOLD);
     mvprintw(3, 2, "%s", e->name);
-    attroff(A_BOLD); attroff(COLOR_PAIR(CP_RED));
-    drawBar(4, 2, 20, e->hp, e->maxHp, CP_RED, "HP");
+    attroff(COLOR_PAIR(enemyPair) | A_BOLD);
+    drawBar(4, 2, 20, e->hp, e->maxHp, CP_BAR_ENE, CP_MENU_DIM, "HP");
 
-    /* Status badges */
-    if (e->status == ST_POISON) { attron(COLOR_PAIR(CP_GREEN));  mvprintw(5, 2, "[POISONED %d]", e->statusTurns); attroff(COLOR_PAIR(CP_GREEN)); }
-    if (e->status == ST_STUN)   { attron(COLOR_PAIR(CP_YELLOW)); mvprintw(5, 2, "[STUNNED %d]",  e->statusTurns); attroff(COLOR_PAIR(CP_YELLOW)); }
+    /* Enemy status badges */
+    if (e->status == ST_POISON) {
+        attron(COLOR_PAIR(CP_POISON) | A_BOLD);
+        mvprintw(5, 2, "[POISONED %d]", e->statusTurns);
+        attroff(COLOR_PAIR(CP_POISON) | A_BOLD);
+    }
+    if (e->status == ST_STUN) {
+        attron(COLOR_PAIR(CP_STUN) | A_BOLD);
+        mvprintw(5, 2, "[STUNNED %d]", e->statusTurns);
+        attroff(COLOR_PAIR(CP_STUN) | A_BOLD);
+    }
 
-    /* Enemy art */
-    int pair = enemyColor(e->type);
-    attron(COLOR_PAIR(pair));
-    int row = 7;
+    /* Enemy art (type-specific colour, bold for boss) */
+    int artPair = enemyArtColor(e->type);
+    attron(COLOR_PAIR(artPair) | (e->isBoss ? A_BOLD : 0));
+    int row = 7, col0 = 2, c = 0;
     const char *art = enemyArt(e->type);
-    int col0 = 2, c = 0;
     for (const char *q = art; *q; q++) {
         if (*q == '\n') { row++; c = 0; }
         else { mvaddch(row, col0 + c, *q); c++; }
     }
-    attroff(COLOR_PAIR(pair));
+    attroff(COLOR_PAIR(artPair) | (e->isBoss ? A_BOLD : 0));
 
-    /* Player panel */
+    /* ── Player panel (right) ── */
     int px0 = 42;
-    attron(COLOR_PAIR(CP_CYAN) | A_BOLD);
+    int clrP = classColor(p->pclass);
+    attron(COLOR_PAIR(clrP) | A_BOLD);
     mvprintw(3, px0, "%s [%s] Lv.%d", p->name, className(p->pclass), p->level);
-    attroff(A_BOLD); attroff(COLOR_PAIR(CP_CYAN));
-    drawBar(4, px0, 20, p->hp, p->maxHp, CP_GREEN, "HP");
-    drawBar(5, px0, 20, p->mp, p->maxMp, CP_BLUE,  "MP");
-    attron(COLOR_PAIR(CP_DIM));
-    mvprintw(6, px0, "ATK:%d  DEF:%d", p->atk, p->def);
-    attroff(COLOR_PAIR(CP_DIM));
-    if (p->status == ST_POISON) { attron(COLOR_PAIR(CP_GREEN));  mvprintw(7, px0, "[POISONED %d]", p->statusTurns); attroff(COLOR_PAIR(CP_GREEN)); }
-    if (p->status == ST_STUN)   { attron(COLOR_PAIR(CP_YELLOW)); mvprintw(7, px0, "[STUNNED %d]",  p->statusTurns); attroff(COLOR_PAIR(CP_YELLOW)); }
-    if (p->status == ST_DEFEND) { attron(COLOR_PAIR(CP_CYAN));   mvprintw(8, px0, "[DEFENDING]"); attroff(COLOR_PAIR(CP_CYAN)); }
+    attroff(COLOR_PAIR(clrP) | A_BOLD);
 
-    /* Battle log */
-    int logRow = 16;
-    attron(COLOR_PAIR(CP_DIM));
-    mvprintw(logRow, 0, "-- Battle Log --");
-    attroff(COLOR_PAIR(CP_DIM));
-    int start = combatLogN > 6 ? combatLogN - 6 : 0;
-    for (int i = start; i < combatLogN; i++) {
-        int hl = (i == combatLogN - 1);
-        int p2 = hl ? CP_WHITE : CP_DIM;
-        attron(COLOR_PAIR(p2) | (hl ? A_BOLD : 0));
-        mvprintw(logRow + 1 + (i - start), 0, "%s", combatLog[i]);
-        attroff(COLOR_PAIR(p2) | (hl ? A_BOLD : 0));
+    drawBar(4, px0, 20, p->hp, p->maxHp, CP_BAR_HP, CP_MENU_DIM, "HP");
+    drawBar(5, px0, 20, p->mp, p->maxMp, CP_BAR_MP, CP_MENU_DIM, "MP");
+
+    attron(COLOR_PAIR(CP_CYAN));
+    mvprintw(6, px0, "ATK:%-4d  DEF:%d", p->atk, p->def);
+    attroff(COLOR_PAIR(CP_CYAN));
+
+    /* Player status badges */
+    if (p->status == ST_POISON) {
+        attron(COLOR_PAIR(CP_POISON) | A_BOLD);
+        mvprintw(7, px0, "[POISONED %d]", p->statusTurns);
+        attroff(COLOR_PAIR(CP_POISON) | A_BOLD);
+    }
+    if (p->status == ST_STUN) {
+        attron(COLOR_PAIR(CP_STUN) | A_BOLD);
+        mvprintw(7, px0, "[STUNNED %d]", p->statusTurns);
+        attroff(COLOR_PAIR(CP_STUN) | A_BOLD);
+    }
+    if (p->status == ST_DEFEND) {
+        attron(COLOR_PAIR(CP_DEFEND) | A_BOLD);
+        mvprintw(8, px0, "[DEFENDING]");
+        attroff(COLOR_PAIR(CP_DEFEND) | A_BOLD);
     }
 
-    /* Action panel */
+    /* ── Battle log ── */
+    int logRow = 16;
+    attron(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+    mvprintw(logRow, 0, "── Battle Log ──────────────────────────────");
+    attroff(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+
+    int start = combatLogN > 6 ? combatLogN - 6 : 0;
+    for (int i = start; i < combatLogN; i++) {
+        int isLatest = (i == combatLogN - 1);
+        int logPair  = isLatest ? CP_WHITE : CP_MENU_DIM;
+        attron(COLOR_PAIR(logPair) | (isLatest ? A_BOLD : 0));
+        mvprintw(logRow + 1 + (i - start), 2, "%s", combatLog[i]);
+        attroff(COLOR_PAIR(logPair) | (isLatest ? A_BOLD : 0));
+    }
+
+    /* ── Action panel ── */
     int aRow = 24;
     const char *specials[] = { "", "Shield Bash (20mp)", "Fireball (30mp)", "Shadow Strike (15mp)" };
-    attron(COLOR_PAIR(CP_CYAN));
-    mvprintw(aRow, 0, "-- Choose Action --");
-    attroff(COLOR_PAIR(CP_CYAN));
-    mvprintw(aRow + 1, 0,
-             "[1] Attack   [2] Defend   [3] Use Item   [4] %s   [5] Flee",
-             specials[p->pclass]);
+    attron(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+    mvprintw(aRow, 0, "── Choose Action ───────────────────────────");
+    attroff(COLOR_PAIR(CP_SUBHEAD) | A_BOLD);
+
+    /* Colour each option */
+    attron(COLOR_PAIR(CP_MENU_HL) | A_BOLD);  mvprintw(aRow+1, 0,  "[1] Attack");   attroff(COLOR_PAIR(CP_MENU_HL) | A_BOLD);
+    mvprintw(aRow+1, 10, "   ");
+    attron(COLOR_PAIR(CP_DEFEND)  | A_BOLD);  mvprintw(aRow+1, 13, "[2] Defend");   attroff(COLOR_PAIR(CP_DEFEND) | A_BOLD);
+    mvprintw(aRow+1, 23, "   ");
+    attron(COLOR_PAIR(CP_GREEN)   | A_BOLD);  mvprintw(aRow+1, 26, "[3] Use Item"); attroff(COLOR_PAIR(CP_GREEN) | A_BOLD);
+    mvprintw(aRow+1, 38, "   ");
+    attron(COLOR_PAIR(CP_YELLOW)  | A_BOLD);  mvprintw(aRow+1, 41, "[4] %s", specials[p->pclass]); attroff(COLOR_PAIR(CP_YELLOW) | A_BOLD);
+    attron(COLOR_PAIR(CP_FLEE)    | A_BOLD);  mvprintw(aRow+2, 0,  "[5] Flee");     attroff(COLOR_PAIR(CP_FLEE) | A_BOLD);
+
     refresh();
 }
 
-/* Item menu in combat. Returns 1 if an item was used (enemy turn happens) */
+/* Item menu in combat */
 static int itemMenu(void) {
     Player *p = &G.player;
     while (1) {
         renderCombat();
         int ar = 26;
-        attron(COLOR_PAIR(CP_YELLOW));
-        mvprintw(ar, 0, "-- Select Item --  (0 cancel)");
-        attroff(COLOR_PAIR(CP_YELLOW));
+        attron(COLOR_PAIR(CP_YELLOW) | A_BOLD);
+        mvprintw(ar, 0, "── Select Item ─────────────────────  [0] Cancel");
+        attroff(COLOR_PAIR(CP_YELLOW) | A_BOLD);
         if (p->nInv == 0) {
-            attron(COLOR_PAIR(CP_DIM));
+            attron(COLOR_PAIR(CP_MENU_DIM));
             mvprintw(ar + 1, 2, "No items!");
-            attroff(COLOR_PAIR(CP_DIM));
+            attroff(COLOR_PAIR(CP_MENU_DIM));
         } else {
             for (int i = 0; i < p->nInv && i < 9; i++) {
+                /* Colour by item type */
+                int itPair = CP_DEFAULT;
+                switch (p->inventory[i].type) {
+                    case IT_HEALTH:   itPair = CP_GREEN;   break;
+                    case IT_MANA:     itPair = CP_BLUE;    break;
+                    case IT_ANTIDOTE: itPair = CP_CYAN;    break;
+                    case IT_WEAPON:   itPair = CP_RED;     break;
+                    case IT_ARMOR:    itPair = CP_YELLOW;  break;
+                }
+                attron(COLOR_PAIR(itPair));
                 mvprintw(ar + 1 + i, 2, "[%d] %s x%d",
                          i + 1, p->inventory[i].name, p->inventory[i].quantity);
+                attroff(COLOR_PAIR(itPair));
             }
         }
         refresh();
@@ -805,13 +1047,13 @@ static int itemMenu(void) {
             Item *it = &p->inventory[idx];
             char msg[96];
             if (it->type == IT_HEALTH) {
-                int new = p->hp + it->value; if (new > p->maxHp) new = p->maxHp;
-                snprintf(msg, sizeof(msg), "Used %s: +%d HP", it->name, new - p->hp);
-                p->hp = new;
+                int nw = p->hp + it->value; if (nw > p->maxHp) nw = p->maxHp;
+                snprintf(msg, sizeof(msg), "Used %s: +%d HP", it->name, nw - p->hp);
+                p->hp = nw;
             } else if (it->type == IT_MANA) {
-                int new = p->mp + it->value; if (new > p->maxMp) new = p->maxMp;
-                snprintf(msg, sizeof(msg), "Used %s: +%d MP", it->name, new - p->mp);
-                p->mp = new;
+                int nw = p->mp + it->value; if (nw > p->maxMp) nw = p->maxMp;
+                snprintf(msg, sizeof(msg), "Used %s: +%d MP", it->name, nw - p->mp);
+                p->mp = nw;
             } else if (it->type == IT_ANTIDOTE) {
                 if (p->status == ST_POISON) { p->status = ST_NONE; p->statusTurns = 0; strcpy(msg, "Antidote cures poison!"); }
                 else strcpy(msg, "No poison to cure.");
@@ -846,7 +1088,6 @@ static char *playerAttack(Player *p, Enemy *e, char *out, size_t n) {
     return out;
 }
 
-/* Returns 0 if not enough MP (no turn consumed), else 1 */
 static int playerSpecial(Player *p, Enemy *e, char *out, size_t n) {
     switch (p->pclass) {
         case CL_WARRIOR: {
@@ -961,17 +1202,19 @@ static void doGameOver(const char *msg) {
     G.state = 1;
     deleteSave();
     erase();
-    drawCenter(LINES/2 - 4, CP_RED, "*** GAME OVER ***");
-    attron(COLOR_PAIR(CP_DIM));
-    drawCenter(LINES/2 - 2, CP_DIM, msg);
-    attroff(COLOR_PAIR(CP_DIM));
+    drawCenter(LINES/2 - 4, CP_GAMEOVER, 1, "╔══════════════════╗");
+    drawCenter(LINES/2 - 3, CP_GAMEOVER, 1, "║   GAME  OVER     ║");
+    drawCenter(LINES/2 - 2, CP_GAMEOVER, 1, "╚══════════════════╝");
+    attron(COLOR_PAIR(CP_FLEE));
+    drawCenter(LINES/2 - 0, CP_FLEE, 0, msg);
+    attroff(COLOR_PAIR(CP_FLEE));
     char buf[128];
-    snprintf(buf, sizeof(buf), "%s - %s", G.player.name, className(G.player.pclass));
-    drawCenter(LINES/2,     CP_CYAN, buf);
-    snprintf(buf, sizeof(buf), "Level %d  ·  Floor %d  ·  Turns %d",
+    snprintf(buf, sizeof(buf), "%s · %s", G.player.name, className(G.player.pclass));
+    drawCenter(LINES/2 + 2, CP_CYAN, 1, buf);
+    snprintf(buf, sizeof(buf), "Level %d  ·  Floor %d  ·  Turn %d",
              G.player.level, G.player.dungeonLevel, G.turn);
-    drawCenter(LINES/2 + 1, CP_CYAN, buf);
-    drawCenter(LINES/2 + 4, CP_DIM,  "Press any key to return to the menu.");
+    drawCenter(LINES/2 + 3, CP_CYAN, 0, buf);
+    drawCenter(LINES/2 + 6, CP_MENU_DIM, 0, "Press any key to return to the menu.");
     refresh();
     getch();
 }
@@ -980,20 +1223,21 @@ static int doWin(void) {
     G.state = 2;
     deleteSave();
     erase();
-    drawCenter(LINES/2 - 4, CP_YELLOW, "*** VICTORY! ***");
-    drawCenter(LINES/2 - 2, CP_CYAN,   "The Dragon falls. The dungeon is yours.");
+    drawCenter(LINES/2 - 5, CP_WIN,  1, "╔════════════════════╗");
+    drawCenter(LINES/2 - 4, CP_WIN,  1, "║     VICTORY!       ║");
+    drawCenter(LINES/2 - 3, CP_WIN,  1, "╚════════════════════╝");
+    drawCenter(LINES/2 - 1, CP_CYAN, 0, "The Dragon falls. The dungeon is yours.");
     char buf[128];
-    snprintf(buf, sizeof(buf), "%s - %s", G.player.name, className(G.player.pclass));
-    drawCenter(LINES/2,     CP_CYAN, buf);
-    snprintf(buf, sizeof(buf), "Level %d  ·  Turns %d", G.player.level, G.turn);
-    drawCenter(LINES/2 + 1, CP_CYAN, buf);
-    drawCenter(LINES/2 + 4, CP_DIM,  "Press any key to return to the menu.");
+    snprintf(buf, sizeof(buf), "%s · %s", G.player.name, className(G.player.pclass));
+    drawCenter(LINES/2 + 1, CP_WIN, 1, buf);
+    snprintf(buf, sizeof(buf), "Level %d  ·  Turn %d", G.player.level, G.turn);
+    drawCenter(LINES/2 + 2, CP_XP, 0, buf);
+    drawCenter(LINES/2 + 5, CP_MENU_DIM, 0, "Press any key to return to the menu.");
     refresh();
     getch();
     return 1;
 }
 
-/* Returns 1 if game ended (gameover or win) */
 static int combatEnd(int won) {
     Enemy *e = combatEnemy;
     if (won) {
@@ -1030,11 +1274,15 @@ static int combatEnd(int won) {
     }
 }
 
-/* Returns 1 if game ended */
+static int enterCombat(Enemy *e);
+static int combatLoop(void);
+
 static int enterCombat(Enemy *e) {
     combatEnemy = e;
     logClear();
-    logPush("A battle begins!");
+    char intro[64];
+    snprintf(intro, sizeof(intro), "A %s appears! Prepare for battle!", e->name);
+    logPush(intro);
     return combatLoop();
 }
 
@@ -1049,17 +1297,15 @@ static int combatLoop(void) {
 
         int ch = getch();
         int action = 0;
-        if (ch == '1') action = 1;
+        if      (ch == '1') action = 1;
         else if (ch == '2') action = 2;
         else if (ch == '3') action = 3;
         else if (ch == '4') action = 4;
         else if (ch == '5') action = 5;
         else continue;
 
-        /* Reset previous defend */
         if (p->status == ST_DEFEND) { p->status = ST_NONE; p->defendBonus = 0; }
 
-        /* Pre-action status ticks */
         if (p->status == ST_POISON) {
             p->statusTurns--;
             int dmg = 3; p->hp -= dmg; if (p->hp < 0) p->hp = 0;
@@ -1086,19 +1332,18 @@ static int combatLoop(void) {
             case 2:
                 p->status = ST_DEFEND;
                 p->defendBonus = p->def;
-                logPush("You brace! Defense doubled this turn.");
+                logPush("You brace yourself! Defense doubled this turn.");
                 break;
             case 3: {
                 int used = itemMenu();
-                if (!used) continue;            /* cancelled, no turn lost */
-                /* item used → enemy turn next */
+                if (!used) continue;
                 if (!e->alive || e->hp <= 0) { e->alive = 0; return combatEnd(1); }
                 enemyTurn(e, p);
                 if (p->hp <= 0) return combatEnd(0);
                 continue;
             }
             case 4:
-                if (!playerSpecial(p, e, buf, sizeof(buf))) continue; /* not enough MP */
+                if (!playerSpecial(p, e, buf, sizeof(buf))) continue;
                 logPush(buf);
                 break;
             case 5:
@@ -1120,6 +1365,53 @@ static int combatLoop(void) {
     }
 }
 
+/* ── Movement ────────────────────────────────────────────── */
+static int tryMove(int dx, int dy) {
+    if (G.state != 0) return 0;
+    int nx = G.player.x + dx, ny = G.player.y + dy;
+    if (nx < 0 || nx >= MAP_W || ny < 0 || ny >= MAP_H) return 0;
+    char tile = G.map.grid[ny][nx].tile;
+    if (tile == '#') return 0;
+
+    for (int i = 0; i < G.map.nEnemies; i++) {
+        Enemy *e = &G.map.enemies[i];
+        if (e->alive && e->x == nx && e->y == ny) {
+            if (enterCombat(e)) return 2;
+            return 0;
+        }
+    }
+
+    for (int i = 0; i < G.map.nLoot; i++) {
+        if (G.map.loot[i].x == nx && G.map.loot[i].y == ny) {
+            pickupItem(i);
+            break;
+        }
+    }
+
+    if (tile == '>') { descendStairs(); renderMap(); saveGame(); return 0; }
+
+    G.player.x = nx; G.player.y = ny;
+    G.turn++;
+
+    if (G.player.status == ST_POISON) {
+        G.player.statusTurns--;
+        int dmg = 3;
+        G.player.hp -= dmg; if (G.player.hp < 0) G.player.hp = 0;
+        snprintf(G.message, sizeof(G.message),
+                 "Poison deals %d damage! (%d turns left)", dmg, G.player.statusTurns);
+        if (G.player.statusTurns <= 0) {
+            G.player.status = ST_NONE;
+            strcpy(G.message, "Poison has faded.");
+        }
+        if (G.player.hp <= 0) { doGameOver("You succumbed to poison..."); return 2; }
+    }
+
+    updateFOV(&G.map, G.player.x, G.player.y);
+    renderMap();
+    saveGame();
+    return 0;
+}
+
 /* ── Game loop ───────────────────────────────────────────── */
 static void runGame(void) {
     renderMap();
@@ -1138,25 +1430,11 @@ static void runGame(void) {
             default: continue;
         }
         int r = tryMove(dx, dy);
-        if (r == 2) return;       /* game ended */
+        if (r == 2) return;
     }
 }
 
-/* ── Init colors ─────────────────────────────────────────── */
-static void initColors(void) {
-    start_color();
-    use_default_colors();
-    init_pair(CP_DEFAULT, COLOR_WHITE,   -1);
-    init_pair(CP_RED,     COLOR_RED,     -1);
-    init_pair(CP_GREEN,   COLOR_GREEN,   -1);
-    init_pair(CP_YELLOW,  COLOR_YELLOW,  -1);
-    init_pair(CP_BLUE,    COLOR_BLUE,    -1);
-    init_pair(CP_MAGENTA, COLOR_MAGENTA, -1);
-    init_pair(CP_CYAN,    COLOR_CYAN,    -1);
-    init_pair(CP_WHITE,   COLOR_WHITE,   -1);
-    init_pair(CP_DIM,     COLOR_BLACK,   -1);   /* will look gray on most terms */
-}
-
+/* ── main ────────────────────────────────────────────────── */
 int main(void) {
     _seed = (uint32_t)time(NULL) ^ (uint32_t)getpid();
 
@@ -1167,9 +1445,9 @@ int main(void) {
     curs_set(0);
     if (has_colors()) initColors();
 
-    if (LINES < 24 || COLS < 70) {
+    if (LINES < 28 || COLS < 70) {
         endwin();
-        fprintf(stderr, "Terminal too small. Need at least 70x24 (have %dx%d)\n", COLS, LINES);
+        fprintf(stderr, "Terminal too small. Need at least 70x28 (have %dx%d)\n", COLS, LINES);
         return 1;
     }
 
