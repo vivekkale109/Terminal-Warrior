@@ -34,7 +34,7 @@
 enum {
     CP_DEFAULT = 1,
     CP_RED, CP_GREEN, CP_YELLOW, CP_BLUE,
-    CP_MAGENTA, CP_CYAN, CP_WHITE, CP_ORANGE
+    CP_MAGENTA, CP_CYAN, CP_WHITE, CP_DIM
 };
 
 /* Player class */
@@ -512,7 +512,7 @@ static int tileColor(char c) {
     switch (c) {
         case '#': return CP_WHITE;
         case '.': return CP_WHITE;
-        case '@': return CP_ORANGE;
+        case '@': return CP_WHITE;
         case 'E': return CP_RED;
         case 'B': return CP_MAGENTA;
         case 'T': return CP_YELLOW;
