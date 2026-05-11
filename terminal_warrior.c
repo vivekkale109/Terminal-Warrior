@@ -37,17 +37,22 @@ enum {
     CP_MAGENTA, CP_CYAN, CP_WHITE, CP_DIM
 };
 
+
 /* Player class */
 enum { CL_WARRIOR = 1, CL_MAGE = 2, CL_ROGUE = 3 };
+
 
 /* Enemy types */
 enum { E_GOBLIN, E_SKELETON, E_ORC, E_VAMPIRE, E_DRAGON };
 
+
 /* Item types */
 enum { IT_HEALTH, IT_MANA, IT_ANTIDOTE, IT_WEAPON, IT_ARMOR };
 
+
 /* Status */
 enum { ST_NONE, ST_POISON, ST_STUN, ST_DEFEND };
+
 
 /* ── Types ──────────────────────────────────────────────── */
 typedef struct { int x, y, w, h; } Room;
