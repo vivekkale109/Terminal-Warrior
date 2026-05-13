@@ -11,6 +11,7 @@
  *   Combat: 1 Attack 2 Defend 3 Item 4 Special 5 Flee
  */
 
+
 #include <ncurses.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,6 +20,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <ctype.h>
+
 
 /* ── Constants ───────────────────────────────────────────── */
 #define MAP_W   60
@@ -29,6 +31,7 @@
 #define MAX_LOOT    16
 #define MAX_ROOMS   8
 #define MAX_LOG     8
+
 
 /* Color pairs */
 enum {
@@ -116,6 +119,7 @@ typedef struct {
     char   message[128];
 } Game;
 
+
 /* ── Globals ──────────────────────────────────────────────── */
 static Game     G;
 static int      gameLoaded = 0;
@@ -123,6 +127,7 @@ static Enemy   *combatEnemy = NULL;
 static char     combatLog[MAX_LOG][96];
 static int      combatLogN = 0;
 static uint32_t _seed;
+
 
 /* ── RNG ─────────────────────────────────────────────────── */
 static double rngd(void) {
@@ -133,6 +138,7 @@ static int randn(int n) {
     if (n <= 0) return 0;
     return (int)(rngd() * n);
 }
+
 
 /* ── Logging ─────────────────────────────────────────────── */
 static void logPush(const char *s) {
@@ -148,6 +154,7 @@ static void logPush(const char *s) {
     }
 }
 static void logClear(void) { combatLogN = 0; }
+
 
 /* ── Save / Load ─────────────────────────────────────────── */
 static const char *savePath(void) {
@@ -178,6 +185,7 @@ static int loadSave(void) {
 }
 static void deleteSave(void) { remove(savePath()); }
 
+
 /* ── Drawing helpers ─────────────────────────────────────── */
 static void drawCenter(int row, int pair, const char *s) {
     int w = COLS;
@@ -187,6 +195,7 @@ static void drawCenter(int row, int pair, const char *s) {
     mvprintw(row, x, "%s", s);
     attroff(COLOR_PAIR(pair) | A_BOLD);
 }
+
 
 /* ── Title Screen ────────────────────────────────────────── */
 static void drawTitle(void) {
@@ -211,6 +220,7 @@ static void drawTitle(void) {
     drawCenter(top+8, CP_DIM, "Press a number key to choose.");
     refresh();
 }
+
 
 /* ── How to Play ─────────────────────────────────────────── */
 static void drawHowTo(void) {
@@ -245,6 +255,7 @@ static void drawHowTo(void) {
     attroff(COLOR_PAIR(CP_DIM));
     refresh();
 }
+
 
 /* ── Character creation ──────────────────────────────────── */
 static int charScreen(char *outName, int *outClass) {
@@ -311,6 +322,7 @@ static int charScreen(char *outName, int *outClass) {
     }
 }
 
+
 /* ── Map generation ──────────────────────────────────────── */
 static Enemy spawnEnemy(int level, int isBoss, int x, int y) {
     Enemy e = {0};
@@ -359,6 +371,7 @@ static void generateMap(Map *m, int level) {
         for (int x = 0; x < MAP_W; x++)
             m->grid[y][x].tile = '#';
 
+
     /* Carve rooms */
     Room rooms[64]; int nr = 0;
     for (int i = 0; i < 30 && nr < MAX_ROOMS; i++) {
@@ -374,6 +387,8 @@ static void generateMap(Map *m, int level) {
         if (!overlap) { rooms[nr].x = rx; rooms[nr].y = ry; rooms[nr].w = rw; rooms[nr].h = rh; nr++; }
     }
     if (nr < 2) {
+
+
         /* fallback: one big room */
         rooms[0].x = 1; rooms[0].y = 1; rooms[0].w = MAP_W-2; rooms[0].h = MAP_H-2; nr = 1;
     }
@@ -395,11 +410,13 @@ static void generateMap(Map *m, int level) {
         while (cy != by) { m->grid[cy][cx].tile = '.'; cy += (by > cy ? 1 : -1); }
     }
 
+
     /* Stairs */
     Room *last = &rooms[nr-1];
     int sx = last->x + last->w/2, sy = last->y + last->h/2;
     m->stairsX = sx; m->stairsY = sy;
     m->grid[sy][sx].tile = '>';
+
 
     /* Enemies */
     int isBoss = (level == 3);
@@ -423,6 +440,7 @@ static void generateMap(Map *m, int level) {
         m->grid[by2][bx2].tile = 'B';
     }
 
+
     /* Treasure */
     int tcount = 2 + randn(3);
     for (int i = 0; i < tcount && m->nLoot < MAX_LOOT; i++) {
@@ -438,6 +456,7 @@ static void generateMap(Map *m, int level) {
         m->nLoot++;
     }
 }
+
 
 /* ── FOV ─────────────────────────────────────────────────── */
 static void updateFOV(Map *m, int px, int py) {
@@ -459,6 +478,7 @@ static void placePlayer(Map *m, Player *p) {
     Room *r = &m->rooms[0];
     p->x = r->x + 1; p->y = r->y + 1;
 }
+
 
 /* ── Player creation / new game ──────────────────────────── */
 static Player createPlayer(const char *name, int pclass) {
@@ -491,6 +511,7 @@ static void newGame(const char *name, int pclass) {
     G.state = 0; G.turn = 0;
     strcpy(G.message, "Welcome! Find the stairs (>) to descend.");
 }
+
 
 /* ── HUD / Map rendering ────────────────────────────────── */
 static const char *className(int c) {
@@ -526,6 +547,7 @@ static void renderMap(void) {
     erase();
     Player *p = &G.player;
 
+
     /* Header */
     attron(COLOR_PAIR(CP_WHITE) | A_BOLD);
     mvprintw(0, 0, "%s", p->name);
@@ -538,6 +560,7 @@ static void renderMap(void) {
     attron(COLOR_PAIR(CP_CYAN));
     mvprintw(2, 0, "ATK:%d  DEF:%d  XP:%d/%d", p->atk, p->def, p->xp, p->xpNext);
     attroff(COLOR_PAIR(CP_CYAN));
+
 
     /* Map */
     int top = 4;
@@ -560,6 +583,7 @@ static void renderMap(void) {
         }
     }
 
+
     /* Message + key help */
     int msgRow = top + MAP_H + 1;
     attron(COLOR_PAIR(CP_YELLOW));
@@ -570,6 +594,7 @@ static void renderMap(void) {
     attroff(COLOR_PAIR(CP_DIM));
     refresh();
 }
+
 
 /* ── Inventory display ───────────────────────────────────── */
 static void showInventory(void) {
@@ -591,6 +616,7 @@ static void showInventory(void) {
     G.message[sizeof(G.message)-1] = 0;
 }
 
+
 /* ── Pickup / descend ───────────────────────────────────── */
 static void pickupItem(int li) {
     Loot *l = &G.map.loot[li];
@@ -611,6 +637,8 @@ static void pickupItem(int li) {
         }
     }
     G.map.grid[l->y][l->x].tile = '.';
+
+
     /* Remove from loot list */
     for (int i = li; i < G.map.nLoot - 1; i++) G.map.loot[i] = G.map.loot[i+1];
     G.map.nLoot--;
@@ -630,11 +658,13 @@ static void descendStairs(void) {
              G.player.dungeonLevel);
 }
 
+
 /* ── Combat (forward decl) ───────────────────────────────── */
 static int  enterCombat(Enemy *e);   /* returns 1 if game ended */
 static int  combatLoop(void);
 static void doGameOver(const char *msg);
 static int  doWin(void);
+
 
 /* ── Movement ────────────────────────────────────────────── */
 /* Returns: 0 keep playing, 1 quit-to-menu, 2 game-ended */
@@ -645,6 +675,7 @@ static int tryMove(int dx, int dy) {
     char tile = G.map.grid[ny][nx].tile;
     if (tile == '#') return 0;
 
+
     /* Enemy? */
     for (int i = 0; i < G.map.nEnemies; i++) {
         Enemy *e = &G.map.enemies[i];
@@ -654,6 +685,7 @@ static int tryMove(int dx, int dy) {
         }
     }
 
+
     /* Loot? */
     for (int i = 0; i < G.map.nLoot; i++) {
         if (G.map.loot[i].x == nx && G.map.loot[i].y == ny) {
@@ -661,6 +693,7 @@ static int tryMove(int dx, int dy) {
             break;
         }
     }
+
 
     /* Stairs */
     if (tile == '>') { descendStairs(); renderMap(); saveGame(); return 0; }
@@ -686,6 +719,7 @@ static int tryMove(int dx, int dy) {
     saveGame();
     return 0;
 }
+
 
 /* ── Combat ─────────────────────────────────────────────── */
 static const char *enemyArt(int t) {
@@ -716,15 +750,18 @@ static void renderCombat(void) {
     drawCenter(0, CP_RED, "==  COMBAT  ==");
     if (e->isBoss) drawCenter(1, CP_MAGENTA, "*  BOSS FIGHT  *");
 
+
     /* Enemy panel */
     attron(COLOR_PAIR(CP_RED) | A_BOLD);
     mvprintw(3, 2, "%s", e->name);
     attroff(A_BOLD); attroff(COLOR_PAIR(CP_RED));
     drawBar(4, 2, 20, e->hp, e->maxHp, CP_RED, "HP");
 
+
     /* Status badges */
     if (e->status == ST_POISON) { attron(COLOR_PAIR(CP_GREEN));  mvprintw(5, 2, "[POISONED %d]", e->statusTurns); attroff(COLOR_PAIR(CP_GREEN)); }
     if (e->status == ST_STUN)   { attron(COLOR_PAIR(CP_YELLOW)); mvprintw(5, 2, "[STUNNED %d]",  e->statusTurns); attroff(COLOR_PAIR(CP_YELLOW)); }
+
 
     /* Enemy art */
     int pair = enemyColor(e->type);
@@ -737,6 +774,7 @@ static void renderCombat(void) {
         else { mvaddch(row, col0 + c, *q); c++; }
     }
     attroff(COLOR_PAIR(pair));
+
 
     /* Player panel */
     int px0 = 42;
@@ -752,6 +790,7 @@ static void renderCombat(void) {
     if (p->status == ST_STUN)   { attron(COLOR_PAIR(CP_YELLOW)); mvprintw(7, px0, "[STUNNED %d]",  p->statusTurns); attroff(COLOR_PAIR(CP_YELLOW)); }
     if (p->status == ST_DEFEND) { attron(COLOR_PAIR(CP_CYAN));   mvprintw(8, px0, "[DEFENDING]"); attroff(COLOR_PAIR(CP_CYAN)); }
 
+
     /* Battle log */
     int logRow = 16;
     attron(COLOR_PAIR(CP_DIM));
@@ -766,6 +805,7 @@ static void renderCombat(void) {
         attroff(COLOR_PAIR(p2) | (hl ? A_BOLD : 0));
     }
 
+
     /* Action panel */
     int aRow = 24;
     const char *specials[] = { "", "Shield Bash (20mp)", "Fireball (30mp)", "Shadow Strike (15mp)" };
@@ -777,6 +817,7 @@ static void renderCombat(void) {
              specials[p->pclass]);
     refresh();
 }
+
 
 /* Item menu in combat. Returns 1 if an item was used (enemy turn happens) */
 static int itemMenu(void) {
@@ -846,6 +887,7 @@ static char *playerAttack(Player *p, Enemy *e, char *out, size_t n) {
     snprintf(out, n, "You attack for %d damage%s!", dmg, isCrit?" (CRIT!)":"");
     return out;
 }
+
 
 /* Returns 0 if not enough MP (no turn consumed), else 1 */
 static int playerSpecial(Player *p, Enemy *e, char *out, size_t n) {
@@ -994,6 +1036,7 @@ static int doWin(void) {
     return 1;
 }
 
+
 /* Returns 1 if game ended (gameover or win) */
 static int combatEnd(int won) {
     Enemy *e = combatEnemy;
@@ -1031,6 +1074,7 @@ static int combatEnd(int won) {
     }
 }
 
+
 /* Returns 1 if game ended */
 static int enterCombat(Enemy *e) {
     combatEnemy = e;
@@ -1057,8 +1101,10 @@ static int combatLoop(void) {
         else if (ch == '5') action = 5;
         else continue;
 
+
         /* Reset previous defend */
         if (p->status == ST_DEFEND) { p->status = ST_NONE; p->defendBonus = 0; }
+
 
         /* Pre-action status ticks */
         if (p->status == ST_POISON) {
@@ -1121,6 +1167,7 @@ static int combatLoop(void) {
     }
 }
 
+
 /* ── Game loop ───────────────────────────────────────────── */
 static void runGame(void) {
     renderMap();
@@ -1142,6 +1189,7 @@ static void runGame(void) {
         if (r == 2) return;       /* game ended */
     }
 }
+
 
 /* ── Init colors ─────────────────────────────────────────── */
 static void initColors(void) {
